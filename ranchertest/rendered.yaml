@@ -1,0 +1,151 @@
+---
+# Source: ranchertest/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-world
+  labels:
+    helm.sh/chart: ranchertest-0.1.0
+    app.kubernetes.io/name: ranchertest
+    app.kubernetes.io/instance: ranchertest
+    app.kubernetes.io/version: "v2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ranchertest
+    app.kubernetes.io/instance: ranchertest
+---
+# Source: ranchertest/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world
+  labels:
+    helm.sh/chart: ranchertest-0.1.0
+    app.kubernetes.io/name: ranchertest
+    app.kubernetes.io/instance: ranchertest
+    app.kubernetes.io/version: "v2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ranchertest
+      app.kubernetes.io/instance: ranchertest
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: ranchertest-0.1.0
+        app.kubernetes.io/name: ranchertest
+        app.kubernetes.io/instance: ranchertest
+        app.kubernetes.io/version: "v2"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: ranchertest
+          image: "gcctestacr.azurecr.io/hello-world:v2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/tls
+              name: tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            optional: true
+            secretName: hello-world-tls
+---
+# Source: ranchertest/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world
+  labels:
+    helm.sh/chart: ranchertest-0.1.0
+    app.kubernetes.io/name: ranchertest
+    app.kubernetes.io/instance: ranchertest
+    app.kubernetes.io/version: "v2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "travelally.store"
+      secretName: hello-world-tls
+  rules:
+    - host: "travelally.store"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-world
+                port:
+                  number: 5000
+---
+# Source: ranchertest/templates/cluster-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: containerengg@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+# Source: ranchertest/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "hello-world-test-connection"
+  labels:
+    helm.sh/chart: ranchertest-0.1.0
+    app.kubernetes.io/name: ranchertest
+    app.kubernetes.io/instance: ranchertest
+    app.kubernetes.io/version: "v2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['hello-world:5000']
+  restartPolicy: Never

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ranchertest
+description: Hello World Flask app with nginx ingress, TLS, and cert-manager ClusterIssuer
+type: application
+version: 0.1.0
+appVersion: "v2"
