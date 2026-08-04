@@ -1,4 +1,5 @@
 defaultNamespace: default
 helm:
-  chart: ranchertest
   releaseName: hello-world
+paths:
+  - ranchertest
